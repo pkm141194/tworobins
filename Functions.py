@@ -5,11 +5,16 @@ from string import punctuation
 from selenium import webdriver
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
+import logging
+import urllib3
+import sys
 
-#get_url = "https://tcesffb3s8.execute-api.ap-south-1.amazonaws.com/dev/productscraping/getinput"
-get_url = "https://tcesffb3s8.execute-api.ap-south-1.amazonaws.com/dev/getinput-jbhifi-office"
-#get_url = "https://tcesffb3s8.execute-api.ap-south-1.amazonaws.com/dev/productscraping/getinputforselenium"
-post_url = "https://tcesffb3s8.execute-api.ap-south-1.amazonaws.com/dev/sitestats"
+urllib3.disable_warnings()
+get_url = "https://tcesffb3s8.execute-api.ap-south-1.amazonaws.com/dev/productscraping/getinput"
+post_url = "https://tcesffb3s8.execute-api.ap-south-1.amazonaws.com/dev/sitestatsTEST1111111111111111"
+logger=logging.getLogger()
+logger.setLevel(logging.DEBUG)
+l = logging.getLogger("test")
 
 
 def find_model(name):
@@ -26,65 +31,96 @@ def find_model(name):
             except:
                 model = None
     return model_found, model
-
-
-def model_filter(name, model):
-    return True if model.lower() in name.lower() else False
-
-def find_model(name):
-    model = None
-    model_found = False
-    n = name.split()
-    for i in n:
-        for j in i:
-            try:
-                j = int(j)
-                model_found = True
-                model = i
-                return model_found, model
-            except:
-                model = None
-    return model_found, model
-
+    
 
 def model_filter(name, model):
     return True if model.lower() in name.lower() else False
 
-
+#Get product data from API.
 def get_data():
-    #  For API
-    while True:
-        data_dict = get(get_url).json()
-        if data_dict['responseCode'] == 200:
-            break
-        else:
+    # For API
+    # while True:
+    #     data_dict = get(get_url).json()
+    #     if data_dict['responseCode'] == 200:
+    #         break
+    #     else:
     #         print('Data not available..')
-            sleep(4)
+    #         sleep(4)
     # For testing
- #   data_dict = {
-  #      "responseCode": 200,
-  #      "responseMessage": "get scraping data from rabbitmq successfully",
-  #      "preferencePojo": {
-  #          "preferenceId": 84,
-  #          "userId": 1,
-  #          "url_scrap": "https://www.dicksmith.com.au/da/",
-  #          "product_scrap": "HP EliteDesk 800 G5 SFF i7 9700 8GB 256GB SSD W10P Desktop PC",
-  #          "createdDate": "2021-02-25 05:34:10",
-  #          "category": "Mobile",
-  #          "sku": "sku",
-  #          "price": 5,
-  #          "variancepercentage": 0,
-  #          "status": 0,
-  #          "seller": "xtrem"
-  #      }
-  #  }
+    data_dict = {
+        "responseCode": 200,
+        "responseMessage": "get scraping data from rabbitmq successfully",
+        "preferencePojo": {
+            "preferenceId": 84,
+            "userId": 1,
+            "url_scrap": "https://www.harveynorman.com.au/",
+            "product_scrap": 'Google Nest Wifi Home Mesh Wi-Fi System 2pk (Base Unit + Wifi Point Unit)',
+            "createdDate": "2021-02-25 05:34:10",
+            "category": "Mobile",
+            "sku": "sku",
+            "price": 500,
+            "variancepercentage": 0,
+            "status": 0,
+            "seller": "Xtreme",
+            "verified": "Accepted",
+            "mpn": "GA00822-AU",
+            "productUrl": "https://www.harveynorman.com.au/google-nest-wifi-mesh-router-2-pack.html"
+        }
+    }
+#Samsung QN85A 65" Neo QLED 4K Smart TV [2021]
+#https://www.becextech.com.au/catalog/surgoi58g256pltprt-p-15926.html#.YPReTOgzZPY
+#https://www.harveynorman.com.au/samsung-galaxy-a52-128gb-awesome-black.html
     if data_dict['responseCode'] != 200:
         return False, False, False, False
     prd = data_dict['preferencePojo']
-    name = prd['product_scrap']
+
+    is_unique_product_search = False
+    #if prd["verified"].lower().strip() == "Accepted":
+    if prd["verified"].strip() == "Accepted":
+        if prd['productUrl'].strip() != "":
+            if prd['url_scrap'] in prd['productUrl'].strip():
+                name = prd['productUrl']
+                is_unique_product_search = True
+            else:
+                if prd['mpn'].strip() != "":
+                    if (prd['mpn'].strip()).isnumeric():
+                        num = int(prd['mpn'].strip())
+                        if num == 0:
+                            name = prd['product_scrap'].strip()
+                        else:
+                            name = prd['mpn'].strip()
+                    else:
+                        name = prd['mpn'].strip()
+                else:
+                    name = prd['product_scrap'].strip()
+        elif prd['mpn'].strip() != "":
+            if (prd['mpn']).strip().isnumeric():
+                num = int(prd['mpn'].strip())
+                if num == 0:
+                    name = prd['product_scrap'].strip()
+                else:
+                    name = prd['mpn'].strip()
+            else:
+                name = prd['mpn'].strip()
+        else:
+            name = prd['product_scrap'].strip()
+    else:
+        if prd['mpn'].strip() != "":
+            if (prd['mpn'].strip()).isnumeric():
+                num = int(prd['mpn'].strip())
+                if num == 0:
+                    name = prd['product_scrap'].strip()
+                else:
+                    name = prd['mpn'].strip()
+            else:
+                name = prd['mpn'].strip()
+        else:
+            name = prd['product_scrap']
+
     price = prd['price']
     seller = prd['seller']
-    return True, name, price, seller, prd
+    return True, name, price, seller, prd, is_unique_product_search
+    print(is_unique_product_search)
 
 
 def post_data(data_list, min_price, competition, comp_price, time, url, prd):
@@ -110,6 +146,7 @@ def post_data(data_list, min_price, competition, comp_price, time, url, prd):
             "productUrl": data['url'],
             "sku": sku,
         }
+        
         # For API
         # while True:
         #     try:
@@ -126,40 +163,51 @@ def post_data(data_list, min_price, competition, comp_price, time, url, prd):
             upload = sub
             uploaded = True
         # For Manual
-#        print(f"{sub['productName']}\n user price: {sub['userPrice']}, min price: {sub['minPrice']}, comp price: {sub['competitionPrice']} actual price: {data['price']}\n")
+        l.critical(f"{sub['productName']}\n user price: {sub['userPrice']}, min price: {sub['minPrice']}, comp price: {sub['competitionPrice']} actual price: {data['price']}\n")
+    l.critical(f'{upload}')
     print(f'\n\nuploaded data:-\n{upload}\n\n')
     sleep(5)
     return response
 
-
 def get_sku(url):
-    print(url)
-    browser = webdriver.Firefox()
-    # browser.minimize_window()
-    browser.get(url)
-    sku = 'NA'
+    sku = "SKU name not available"
     try:
         if 'binglee' in url:
+            l.critical(url)
+            browser = webdriver.Firefox()
+            # browser.minimize_window()
+            browser.get(url)
+            sku = 'SKU name not available'
             try:
                 sku = browser.find_elements_by_css_selector('.product-highlight>li')[0].text.split(' ')[-1]
             except Exception as e:
                 n = e
+            browser.quit()
+        
         if 'officeworks' in url:
+            browser = webdriver.Firefox()
+            # browser.minimize_window()
+            browser.get(url)
+            sku = 'SKU name not available'
             try:
                 sku = browser.find_element_by_id('product-code').text
             except Exception as e:
                 n = e
+            browser.quit()
 
         if 'jbhifi' in url:
+            browser = webdriver.Firefox()
+            # browser.minimize_window()
+            browser.get(url)
+            sku = 'SKU name not available'
             try:
                 sku = browser.find_elements_by_css_selector('.product-meta.prod-code>dd')[1].text
             except Exception as e:
                 n = e
+            browser.quit()
 
     except Exception as e:
         n = e
-
-    browser.quit()
     return sku
 
 
@@ -183,12 +231,12 @@ def calculate(data_list, price):
             else:
                 comp = 'Seller name not available'
     except Exception as e:
-        print(e)
+        l.critical(e)
 
     try:
         m_p = min_price if float(price) >= float(min_price) else price
     except Exception as e:
-        print(e)
+        l.critical(e)
         m_p = min_price
 
     for i in m_l:
@@ -254,7 +302,8 @@ class Compare:
 
     def filter(self, main_string: str, to_compare: list, given_filter: float):
         t1 = datetime.now()
-        print(f'{len(to_compare)} Data Found', end=' ')
+        #l.critical(f'{len(to_compare)} Data Found')
+        #print(f'{len(to_compare)} Data Found', end=' ')
         words = []
         for i in to_compare:
             words.append(i['name'])
@@ -277,5 +326,5 @@ class Compare:
             for j in filtered:
                 if i == j:
                     ret_data.append(i)
-        print(f'{len(ret_data)} will be uploaded..')
+        l.critical(f'{len(ret_data)} will be uploaded..')
         return sort_price(ret_data), (datetime.now() - t1).total_seconds() / len(to_compare)
